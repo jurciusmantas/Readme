@@ -9,6 +9,10 @@
 *.userosscache
 *.sln.docstates
 
+##########################
+mona
+Server/*.exe
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -328,3 +332,5 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+
