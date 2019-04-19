@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Readme")]
+[assembly: AssemblyTitle("ReadmeClient")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Readme")]
+[assembly: AssemblyProduct("ReadmeClient")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("953e8cc3-c370-4ed2-8a75-3d49c404200c")]
+[assembly: Guid("20c2cca6-1d48-498f-abe2-39b73fe89e2c")]
 
 // Version information for an assembly consists of the following four values:
 //

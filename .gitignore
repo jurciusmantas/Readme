@@ -12,6 +12,7 @@
 ##########################
 mona
 Server/*.exe
+Server/*.o
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
