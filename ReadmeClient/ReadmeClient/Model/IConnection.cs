@@ -2,6 +2,6 @@
 {
     public interface IConnection
     {
-        bool AskForReadme();
+        bool AskForReadme(string language, string project);
     }
 }

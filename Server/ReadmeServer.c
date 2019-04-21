@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	WSADATA data;
 	unsigned int port;
 	int l_socket;
-	
+	int git_socket;
 	int c_socket;
 	
 	int i,j;
@@ -20,14 +20,17 @@ int main(int argc, char *argv[])
 	FD_SET WriteSet;
 	
 	struct sockaddr_in servaddr;
-	struct sockaddr_in clientaddr1;
-	struct sockaddr_in clientaddr2;
+	struct sockaddr_in clientaddr;
+	struct sockaddr_in gitapiaddr;
 	
-	socklen_t clientaddr1len;
-	socklen_t clientaddr2len;
+	socklen_t clientaddrlen;
+	
+	memset(&clientaddr, 0, sizeof(clientaddr));
+	clientaddrlen = sizeof(clientaddr);		
 	
 	int s_len;
 	int r_len;
+	int temp;
 	
 	char ServerBuffer[1024];
 	char GitHubApiBuffer[1024];
@@ -135,7 +138,7 @@ int main(int argc, char *argv[])
 			//Server Socket LISTENing with
 			//listen() call
 		
-			if ((c_socket = accept(l_socket, NULL, NULL)) != INVALID_SOCKET )
+			if ((c_socket = accept(l_socket, (struct sockaddr *)&clientaddr, &clientaddrlen)) != INVALID_SOCKET )
 			{
 				// Make client socket non blocking
 				NonBlock = 1;
@@ -147,22 +150,18 @@ int main(int argc, char *argv[])
 				
 				printf("CLIENT SOCKET NONBLOCKING - OK\n");
 				ServerBuffer[0] = '1'; //start config
-				}
+				r_len = 0;
+			}
+			else
+			{	
+				printf("ERROR: ACCEPTING SOCKET\n");
+				//exit(1);
+			}
 		}
-		else
-		{
-			printf("ERROR: ACCEPTING SOCKET\n");
-			exit(1);
-		}
-	
+
+		//Check if ReadSet
 		
-		
-		//****************************\\
-		//*******Handle message*******\\
-		//****************************\\
-		//Check if ReadSet or WriteSet 
-		
-			
+		//printf("DEBUG: check read set");
 		if (FD_ISSET(c_socket, &ReadSet))
 		{	
 			r_len = recv(c_socket, ClientBuffer, sizeof(ClientBuffer), 0);
@@ -175,7 +174,31 @@ int main(int argc, char *argv[])
 			else
 				printf("recv() - OK. CLIENT SENT %s\n", ClientBuffer);
 			
-			r_len = 0; //*TEMP* to set fd_set to read				
+			
+			//****************************\\
+			//**Send request to git api***\\
+			//****************************\\
+			
+			memset(&gitapiaddr, 0,sizeof(gitapiaddr));
+			gitapiaddr.sin_family = AF_INET;
+			gitapiaddr.sin_addr.s_addr = inet_addr("192.30.252.0");
+			gitapiaddr.sin_port = htons(80);
+			git_socket = socket(AF_INET,SOCK_STREAM,0);
+			printf("Connecting to git api...\n");
+			printf("Connected!\n");
+			send(git_socket, ClientBuffer, strlen(ClientBuffer),0);
+			printf("GET Sent...\n");
+			r_len = recv(git_socket,GitHubApiBuffer, sizeof(GitHubApiBuffer),0);
+			if(r_len == SOCKET_ERROR)
+			{
+				printf("ERROR: recv()");
+			}
+			else if (r_len == 0)
+				printf("ASSERT: Gracefull close? \n");
+			else
+				printf("recv() - OK. GITHUB SENT %s\n", ClientBuffer);
+			printf("recv()'d %d bytes of data in\n",r_len);
+			printf("%s",GitHubApiBuffer);
 		}
 	}
 }
