@@ -11,8 +11,12 @@ int main(int argc, char *argv[])
 	WSADATA data;
 	unsigned int port;
 	int l_socket;
-	int git_socket;
+	SOCKET git_socket;
 	int c_socket;
+	
+	struct hostent *he;
+	struct in_addr **addr_list;
+	char ip[100];
 	
 	int i,j;
 	unsigned long NonBlock;
@@ -24,6 +28,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in gitapiaddr;
 	
 	socklen_t clientaddrlen;
+	socklen_t gitapiaddrlen;
 	
 	memset(&clientaddr, 0, sizeof(clientaddr));
 	clientaddrlen = sizeof(clientaddr);		
@@ -172,33 +177,77 @@ int main(int argc, char *argv[])
 			else if (r_len == 0)
 				printf("ASSERT: Gracefull close? \n");
 			else
-				printf("recv() - OK. CLIENT SENT %s\n", ClientBuffer);
+				printf("recv() - OK. CLIENT SENT :\n\n%s\n", ClientBuffer);
 			
 			
 			//****************************\\
 			//**Send request to git api***\\
 			//****************************\\
 			
-			memset(&gitapiaddr, 0,sizeof(gitapiaddr));
+			if ( (he = gethostbyname( "api.github.com" ) ) == NULL) 
+			{		
+				//gethostbyname failed
+				printf("ERROR : gethostbyname() failed : %d\n" , WSAGetLastError());
+				return 1;
+			}
+			
+			addr_list = (struct in_addr **) he->h_addr_list;
+			
+			for(i = 0; addr_list[i] != NULL; i++) 
+			{
+				//Return the first one;
+				strcpy(ip , inet_ntoa(*addr_list[i]) );
+			}
+			
+			printf("api.github.com resolved to : %s\n", ip);
+			
+			memset(&gitapiaddr, 0, sizeof(gitapiaddr));
+			gitapiaddrlen = sizeof(gitapiaddr);
+			
 			gitapiaddr.sin_family = AF_INET;
-			gitapiaddr.sin_addr.s_addr = inet_addr("192.30.252.0");
+			gitapiaddr.sin_addr.s_addr = inet_addr(ip);
 			gitapiaddr.sin_port = htons(80);
-			git_socket = socket(AF_INET,SOCK_STREAM,0);
+			
+			if ((git_socket = socket(AF_INET,SOCK_STREAM,0)) == INVALID_SOCKET)
+			{
+				printf("ERROR: creating git socket failed : %d\n" , WSAGetLastError());
+				//should set read set and return from if...
+				exit(1);
+			}
+		
 			printf("Connecting to git api...\n");
+			if (connect(git_socket, (struct sockaddr *)&gitapiaddr, sizeof(gitapiaddr)) < 0)
+			{
+				printf("ERROR: Connect with git socket failed : %d\n" , WSAGetLastError());
+				//should set read set and return from if...
+				exit(1);
+			}
+			
 			printf("Connected!\n");
 			send(git_socket, ClientBuffer, strlen(ClientBuffer),0);
 			printf("GET Sent...\n");
+			
 			r_len = recv(git_socket,GitHubApiBuffer, sizeof(GitHubApiBuffer),0);
 			if(r_len == SOCKET_ERROR)
 			{
-				printf("ERROR: recv()");
+				printf("ERROR: recv() failed : %d\n", WSAGetLastError());
+				// send to client error notification
+				// two lines below - for read set;
+				r_len = 0;
+				ServerBuffer[0] = '1';
+				exit(1);
 			}
 			else if (r_len == 0)
+			{
 				printf("ASSERT: Gracefull close? \n");
+				exit(1);
+			}
 			else
 				printf("recv() - OK. GITHUB SENT %s\n", ClientBuffer);
-			printf("recv()'d %d bytes of data in\n",r_len);
+			
+			printf("recv() %d bytes of data in\n",r_len);
 			printf("%s",GitHubApiBuffer);
+			exit(1);
 		}
 	}
 }

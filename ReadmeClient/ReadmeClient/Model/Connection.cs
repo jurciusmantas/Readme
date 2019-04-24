@@ -77,8 +77,9 @@ namespace Readme.Model
             if (!string.IsNullOrWhiteSpace(project))
                 request += $"repositories?q={project}+";
 
-            if (string.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 request += $"language:{language}";
+            else request = request.Substring(0, request.Length - 1);
 
             request += "&sort=stars&order=desc HTTP/1.1\r\n" +
                 "Host: api.github.com\r\n" +
