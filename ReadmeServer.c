@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	WSADATA data;
 	SOCKET s;
 	SOCKET s2;
-	HANDLE fhand;
+	FILE * fp;
 	
 	struct hostent *he;
 	struct in_addr **addr_list;
@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 	
 	char Buffer[4096];
 	char* lookingFor = "To download file click the link below:<br /><a href=";
+	char* point;
 	char downloadLink[70];
 	
 	WSAStartup(MAKEWORD(2,2),&data);
@@ -73,18 +74,10 @@ int main(int argc, char *argv[])
 	printf("Connected!\n");
 	
 	printf("Sending GET...\n");
-	// http://s000.tinyupload.com/index.php?file_id=09760787909058046117
-	strcpy(Buffer, "GET /index.php?file_id=09760787909058046117 HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
+	// http://s000.tinyupload.com/index.php?file_id=78914622886860086395
+	strcpy(Buffer, "GET /index.php?file_id=78914622886860086395 HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
 	send(s, Buffer, strlen(Buffer),0);
 	printf("GET Sent!\n");
-	
-	/*fhand=CreateFile("D:\\VU\\4 pusmetis\\KompTinklai\\2UZD\\Readme\\test.txt",GENERIC_WRITE,FILE_SHARE_READ,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0);
-	if(fhand==INVALID_HANDLE_VALUE)
-	{
-		printf("CreateFile() failed\n");
-		exit(1);
-	}
-	*/
 	
 	printf("Receiving from server...\n");
 	r_len = recv(s, Buffer, sizeof(Buffer), 0);
@@ -97,22 +90,23 @@ int main(int argc, char *argv[])
 	{ 
 		r_len = recv(s, Buffer, sizeof(Buffer), 0); 
 		realr_len += r_len;
-		char* point = strstr(Buffer, lookingFor);
+		point = strstr(Buffer, lookingFor);
 		if(point != NULL && found == 0)
 		{
-			//point - pointer of the start of lookingFor value in Buffer
-			int tempSize = sizeof(downloadLink);
+			//point - pointer of the start of look 
 			strncpy(downloadLink, point+strlen(lookingFor)+1, 69);
 			printf("\n--\nDownload link - %s\n--\n", downloadLink);
 			found = 1;
 		}
 	}
 	
-	printf("recv() %d bytes of data\n\n",realr_len);	
+	printf("recv() %d bytes of data\n\n",realr_len);
+	closesocket(s);	
 	
 	/*******************/
-	//Now I dont know why but I need this step
+	//Now I dont know why but I need a new socket
 	/*******************/
+	printf("Starting file download\n",realr_len);
 	
 	if ((s2 = socket(AF_INET,SOCK_STREAM, 0)) == INVALID_SOCKET)
 	{
@@ -132,10 +126,9 @@ int main(int argc, char *argv[])
 	
 	//SEND GET to get desired file;
 	memset(Buffer, 0, sizeof(Buffer));
-	strcpy(Buffer, "GET /");
+	strcpy(Buffer, "GET /");	
 	strcat(Buffer, downloadLink);
-	strcat(Buffer, " HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
-	printf("DEBUG: %s\n", Buffer);	
+	strcat(Buffer, " HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");	
 	
 	printf("Sending GET...\n");
 	send(s2, Buffer, strlen(Buffer),0);
@@ -144,18 +137,24 @@ int main(int argc, char *argv[])
 	printf("Receiving from server...\n");
 	r_len = recv(s2, Buffer, sizeof(Buffer), 0);
 	realr_len = r_len;
-	//show header
-	//printf("\n%340.340s\n", Buffer);
 	printf("\n%s\n", Buffer);
 	while (r_len > 0)
 	{ 
-		r_len = recv(s2, Buffer, sizeof(Buffer), 0); 
+		r_len = recv(s2, Buffer, sizeof(Buffer), 0);
+		if (r_len == 0)
+			break;
 		realr_len += r_len;
 		printf("\n%s\n", Buffer);
 	}
 	
+	printf("recv() %d bytes of data\n",realr_len);
+
+	fp = fopen("test.txt" ,"w");
+	memset(&lookingFor, 0, sizeof(lookingFor));
+	point = strstr(Buffer, "\r\n\r\n");	
+	printf("File downloaded\n",realr_len);
+	fprintf(fp, point+4);
 	WSACleanup();
-	closesocket(s);
-	printf("recv() %d bytes of data\n",realr_len);		
-	exit(1);
+	closesocket(s2);	
+	return 0;
 }
