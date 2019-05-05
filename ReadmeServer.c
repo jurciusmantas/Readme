@@ -33,16 +33,14 @@ int main(int argc, char *argv[])
 	
 	WSAStartup(MAKEWORD(2,2),&data);
 	
-	if (argc != 2 || strstr(argv[1], "s000.tinyupload.com/index.php?file_id=") == NULL) // todo: later validate if provided link is from tinyupload
+	if (argc != 2 || strstr(argv[1], "s000.tinyupload.com/index.php?file_id=") == NULL)
 	{
 		printf("Please provide a tinyupload download link!\n");
 		return 0;
 	}
 	
-	/////////////
 	if ( (he = gethostbyname( "s000.tinyupload.com" ) ) == NULL)
 	{		
-		//gethostbyname failed
 		printf("ERROR : gethostbyname() failed : %d\n" , WSAGetLastError());
 		return 1;
 	}
@@ -51,7 +49,6 @@ int main(int argc, char *argv[])
 		
 	for(i = 0; addr_list[i] != NULL; i++) 
 	{
-		//Return the first one;
 		strcpy(ip , inet_ntoa(*addr_list[i]) );
 	}
 		
@@ -62,8 +59,7 @@ int main(int argc, char *argv[])
 	
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = inet_addr(ip);
-	servaddr.sin_port = htons(80); // <- http
-	//servaddr.sin_port = htons(443); // <- https
+	servaddr.sin_port = htons(80);
 	
 	if ((s = socket(AF_INET,SOCK_STREAM, 0)) == INVALID_SOCKET)
 	{
@@ -83,7 +79,6 @@ int main(int argc, char *argv[])
 	
 	printf("Sending GET...\n");
 	temp = strstr(argv[1], "/index");
-	// http://s000.tinyupload.com/index.php?file_id=83942977144827959045
 	strcpy(Buffer, "GET ");
 	strcat(Buffer, temp);
 	strcat(Buffer, " HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
@@ -132,7 +127,6 @@ int main(int argc, char *argv[])
 	if ((s2 = socket(AF_INET,SOCK_STREAM, 0)) == INVALID_SOCKET)
 	{
 		printf("ERROR: creating socket failed : %d\n" , WSAGetLastError());
-		//should set read set and return from if...
 		exit(1);
 	}		
 		
@@ -140,7 +134,6 @@ int main(int argc, char *argv[])
 	if (connect(s2, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
 	{
 		printf("ERROR: Connect with server failed : %d\n" , WSAGetLastError());
-		//should set read set and return from if...
 		exit(1);
 	}			
 	printf("Connected!\n");
