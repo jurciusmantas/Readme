@@ -23,13 +23,21 @@ int main(int argc, char *argv[])
 	int s_len;
 	int r_len, realr_len;
 	int i;
+	int headerLenght;
 	
 	char Buffer[4096];
 	char* lookingFor = "To download file click the link below:<br /><a href=";
 	char* point;
+	char* temp;
 	char downloadLink[70];
 	
 	WSAStartup(MAKEWORD(2,2),&data);
+	
+	if (argc != 2 || strstr(argv[1], "s000.tinyupload.com/index.php?file_id=") == NULL) // todo: later validate if provided link is from tinyupload
+	{
+		printf("Please provide a tinyupload download link!\n");
+		return 0;
+	}
 	
 	/////////////
 	if ( (he = gethostbyname( "s000.tinyupload.com" ) ) == NULL)
@@ -59,7 +67,7 @@ int main(int argc, char *argv[])
 	
 	if ((s = socket(AF_INET,SOCK_STREAM, 0)) == INVALID_SOCKET)
 	{
-		printf("ERROR: creating s failed : %d\n" , WSAGetLastError());
+		printf("ERROR: creating socket failed : %d\n" , WSAGetLastError());
 		//should set read set and return from if...
 		exit(1);
 	}		
@@ -67,15 +75,18 @@ int main(int argc, char *argv[])
 	printf("Connecting to server...\n");
 	if (connect(s, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
 	{
-		printf("ERROR: Connect with s failed : %d\n" , WSAGetLastError());
+		printf("ERROR: Connect with server failed : %d\n" , WSAGetLastError());
 		//should set read set and return from if...
 		exit(1);
 	}			
 	printf("Connected!\n");
 	
 	printf("Sending GET...\n");
-	// http://s000.tinyupload.com/index.php?file_id=78914622886860086395
-	strcpy(Buffer, "GET /index.php?file_id=78914622886860086395 HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
+	temp = strstr(argv[1], "/index");
+	// http://s000.tinyupload.com/index.php?file_id=83942977144827959045
+	strcpy(Buffer, "GET ");
+	strcat(Buffer, temp);
+	strcat(Buffer, " HTTP/1.1\r\nHost: s000.tinyupload.com\r\n\r\n");
 	send(s, Buffer, strlen(Buffer),0);
 	printf("GET Sent!\n");
 	
@@ -84,33 +95,43 @@ int main(int argc, char *argv[])
 	realr_len = r_len;
 	
 	//show header
-	int found = 0;
-	printf("\n%340.340s\n", Buffer);
+	headerLenght = getHeaderLenght(Buffer);
+	if (headerLenght == 0)
+	{
+		printf("ERROR: Could not find header lenght!\n");
+		exit(1);
+	}
+	printf("\nHEADER : -------------------------\n");
+	fwrite(Buffer, 1, headerLenght, stdout);
+	printf("\nEND OF HEADER --------------------\n\n");
+	
+	//get download link
 	while (r_len > 0)
 	{ 
 		r_len = recv(s, Buffer, sizeof(Buffer), 0); 
 		realr_len += r_len;
 		point = strstr(Buffer, lookingFor);
-		if(point != NULL && found == 0)
+		if(point != NULL)
 		{
-			//point - pointer of the start of look 
 			strncpy(downloadLink, point+strlen(lookingFor)+1, 69);
-			printf("\n--\nDownload link - %s\n--\n", downloadLink);
-			found = 1;
+			downloadLink[69] = '\0';
+			break;
 		}
 	}
 	
-	printf("recv() %d bytes of data\n\n",realr_len);
+	printf("recv() %d bytes of data\n",realr_len);
+	printf("--\nDownload link - %s\n--\n", downloadLink);
 	closesocket(s);	
 	
 	/*******************/
-	//Now I dont know why but I need a new socket
+	//FILE DOWNLOAD
 	/*******************/
+	
 	printf("Starting file download\n",realr_len);
 	
 	if ((s2 = socket(AF_INET,SOCK_STREAM, 0)) == INVALID_SOCKET)
 	{
-		printf("ERROR: creating s failed : %d\n" , WSAGetLastError());
+		printf("ERROR: creating socket failed : %d\n" , WSAGetLastError());
 		//should set read set and return from if...
 		exit(1);
 	}		
@@ -118,7 +139,7 @@ int main(int argc, char *argv[])
 	printf("Connecting to server...\n");
 	if (connect(s2, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
 	{
-		printf("ERROR: Connect with s failed : %d\n" , WSAGetLastError());
+		printf("ERROR: Connect with server failed : %d\n" , WSAGetLastError());
 		//should set read set and return from if...
 		exit(1);
 	}			
@@ -134,27 +155,84 @@ int main(int argc, char *argv[])
 	send(s2, Buffer, strlen(Buffer),0);
 	printf("GET Sent!\n");
 	
+	memset(&Buffer, 0, sizeof(Buffer));
 	printf("Receiving from server...\n");
+	point = NULL;
+	realr_len = 0;
 	r_len = recv(s2, Buffer, sizeof(Buffer), 0);
-	realr_len = r_len;
-	printf("\n%s\n", Buffer);
+	if (r_len == 0 || strstr(Buffer, "HTTP/1.1 200 OK") == NULL)
+	{
+		printf("ERROR: Receiving from server.\n");
+		exit(1);
+	}
+	realr_len += r_len;
+	
+	//header
+	headerLenght = getHeaderLenght(Buffer);
+	if (headerLenght == 0)
+	{
+		printf("ERROR: Could not find header lenght!");
+		exit(1);
+	}
+	printf("\nHEADER : -------------------------\n");
+	fwrite(Buffer, 1, headerLenght, stdout);
+	printf("\nEND OF HEADER --------------------\n\n");
+	
+	// find filename from buffer
+	point = NULL;
+	point = strstr(Buffer, "filename=");
+	if (point == NULL)
+	{
+		printf("ERROR: Could not find filename in header\n");
+		exit(1);
+	}
+	
+	int size = 0;
+	// get filename
+	for(;;)
+	{
+		if (*(point+10+size) != '"')
+			size++;
+		else 
+			break;
+	}
+	
+	char filename[size];
+	strncpy(filename, point+10, size);
+	filename[size] = '\0';
+	
+	// open file
+	fp = fopen(filename, "wb");
+	
+	//write content
+	point = NULL;
+	point = strstr(Buffer, "\r\n\r\n");
+	fwrite(point+4, sizeof(char), r_len - headerLenght - 4, fp);
+	
 	while (r_len > 0)
-	{ 
+	{
+		memset(&Buffer, 0, sizeof(Buffer));
 		r_len = recv(s2, Buffer, sizeof(Buffer), 0);
 		if (r_len == 0)
 			break;
 		realr_len += r_len;
-		printf("\n%s\n", Buffer);
+		
+		fwrite(Buffer, sizeof(char), r_len, fp);
 	}
 	
 	printf("recv() %d bytes of data\n",realr_len);
-
-	fp = fopen("test.txt" ,"w");
-	memset(&lookingFor, 0, sizeof(lookingFor));
-	point = strstr(Buffer, "\r\n\r\n");	
-	printf("File downloaded\n",realr_len);
-	fprintf(fp, point+4);
 	WSACleanup();
-	closesocket(s2);	
+	closesocket(s2);
+	fclose(fp);
 	return 0;
+}
+
+int getHeaderLenght(char Buffer[])
+{
+	char* point = strstr(Buffer, "\r\n\r\n");
+	if (point == NULL)
+		return 0;
+	
+	int lenght = strlen(Buffer) - strlen(point);
+	return lenght;
 }
